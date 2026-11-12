@@ -1,0 +1,7 @@
+node_modules
+dist
+output
+research
+.cache
+.git
+.env

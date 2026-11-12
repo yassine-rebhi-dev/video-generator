@@ -152,3 +152,16 @@ Findings:
 - From this session, `huggingface.co`, `www.kaggle.com`, `api.groq.com`, `openrouter.ai` and Pollinations are unreachable; `generativelanguage.googleapis.com` and npm are reachable.
 
 Decision: video backends `kaggle` (default, Python worker) and `hf-zerogpu`, behind one interface, with a still-image fallback per clip; Gemini free tier for the script; Kokoro and Whisper locally. See docs/DESIGN.md sections 2, 5, 6.
+
+## Phase 4 — build log
+
+### 2026-11-12: first end-to-end slice
+
+- Created a personal cloud environment `video-generator` allowing `huggingface.co`, `us.aws.cdn.hf.co` (where model files are actually served), `www.kaggle.com` and `generativelanguage.googleapis.com`.
+- NestJS 12 and commander are ES-module only, so the project is ES modules throughout.
+- Measured on this machine (4 CPU cores, no GPU), 33 s sample video with placeholder visuals:
+  - Kokoro voice, 9 scenes: about 26 s. Whisper word timing: about 14 s. ffmpeg render: about 28 s. Total about 72 s.
+  - Whisper matched 99% of script words (one scene at 91%).
+  - Speech onsets measured in the final file by silence detection fall within 0.03 s of the planned scene starts.
+  - Loudness measured -15.8 LUFS against a -14 target: single-pass normalisation undershoots; a two-pass measure-then-apply step would fix it.
+- Not done yet: real video backends (Kaggle, Hugging Face), a live run of the Gemini adapter, music tracks, Docker build.

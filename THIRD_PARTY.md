@@ -4,7 +4,7 @@ Everything reused from another project is listed here with its licence and sourc
 
 ## Code copied from other repositories
 
-**None.** As of the design phase no source code, prompt text or asset from another repository is in this project. The repositories under `research/` were read for ideas only; their clones are git-ignored and are not distributed.
+**None.** No source code, prompt text or asset from another repository is in this project. The repositories under `research/` were read for ideas only; their clones are git-ignored and are not distributed.
 
 ## Ideas reimplemented (no code copied)
 
@@ -17,17 +17,32 @@ Everything reused from another project is listed here with its licence and sourc
 | Character bible (static vs dynamic features), self-contained shot descriptions, reference-image conditioning, resume-by-artifact | ViMax | MIT | https://github.com/HKUDS/ViMax |
 | Write → review → revise-once loop; continuity checklist | Toonflow | MIT | https://github.com/HBAI-Ltd/Toonflow-app |
 
-## Planned runtime dependencies (to be confirmed when added in Phase 4)
+## Runtime dependencies
 
 | Dependency | Purpose | Licence | Source |
 |---|---|---|---|
-| NestJS | Application framework | MIT | https://github.com/nestjs/nest |
-| `@anthropic-ai/sdk` | LLM calls | MIT | https://github.com/anthropics/anthropic-sdk-typescript |
+| NestJS (`@nestjs/common`, `core`, `platform-express`) | REST API and wiring | MIT | https://github.com/nestjs/nest |
 | zod | Config and schema validation | MIT | https://github.com/colinhacks/zod |
-| `kokoro-js` + Kokoro-82M weights | Local text-to-speech | Apache-2.0 | https://github.com/hexgrad/kokoro |
-| `@huggingface/transformers` + Whisper ONNX weights | Word timing | Apache-2.0 (library), MIT (Whisper) | https://github.com/huggingface/transformers.js , https://github.com/openai/whisper |
-| ffmpeg (system binary, invoked as a process) | Rendering | LGPL/GPL depending on build | https://ffmpeg.org |
-| Caption font | Burned-in captions | To be chosen; must be OFL or Apache-2.0 | — |
-| Background music | Music bed | To be chosen; CC0 or licensed tracks only, each listed here | — |
+| commander | Command-line parsing | MIT | https://github.com/tj/commander.js |
+| `kokoro-js` | Runs the Kokoro voice model | Apache-2.0 | https://github.com/hexgrad/kokoro |
+| `@huggingface/transformers` | Runs Whisper for word timing | Apache-2.0 | https://github.com/huggingface/transformers.js |
+| ffmpeg (system binary, run as a separate process) | Rendering, audio, the flite fallback voice | LGPL/GPL depending on build | https://ffmpeg.org |
+
+## Models downloaded at run time (not stored in this repository)
+
+| Model | Purpose | Licence | Source |
+|---|---|---|---|
+| Kokoro-82M (ONNX, 8-bit) | Narration voice | Apache-2.0 | https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX |
+| Whisper base (ONNX, with word timestamps) | Word timing | MIT (OpenAI Whisper) | https://huggingface.co/onnx-community/whisper-base_timestamped |
+
+## Fonts and music
+
+| Asset | Purpose | Licence | Source |
+|---|---|---|---|
+| Inter (installed on the system, not bundled) | Caption font | SIL Open Font License 1.1 | https://github.com/rsms/inter |
+| Background music | None bundled yet | — | — |
+
+The licences in the tables above are as stated by each project; the model licences were not
+re-checked on their model pages during the build.
 
 Rule: nothing is added to the project without a row in this file.
