@@ -28,6 +28,8 @@ With no GPU, free full video means borrowing a free GPU. There are two real ways
 | **`hf-zerogpu`** | Calls a public Wan/LTX Space on Hugging Face through `@gradio/client` with a free account token. | 5 GPU-minutes per day on a free account, resetting 24 h after first use ([HF forum](https://discuss.huggingface.co/t/what-is-the-free-zerogpu-quota-for-1-space/178610), [metacto](https://www.metacto.com/blogs/the-true-cost-of-hugging-face-a-guide-to-pricing-and-integration)) | A few clips a day: tests, or the hook |
 | `comfy-local` | Same workflow against a local ComfyUI, if a GPU ever becomes available. | — | Later |
 
+**Measured 2026-11-12:** the public LTX-Video Space (`Lightricks/ltx-video-distilled`) reserves 120 seconds of allowance for one 4-second clip. A free account's 300 seconds a day therefore buys about 2 clips, so this backend can supply a hook clip or fill gaps over several days, not a whole video. Kaggle has to carry the volume.
+
 What this choice costs, plainly:
 
 - **Volume is limited by quota, not money.** ZeroGPU alone is at best about one short a day and probably less. Kaggle should allow several a week. Neither figure is measured yet.

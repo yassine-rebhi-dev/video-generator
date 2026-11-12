@@ -4,16 +4,16 @@ Turns a topic into a narrated vertical story video (1080×1920, 15–60 s) with 
 word-highlight captions, for Instagram Reels and YouTube Shorts. Built to run at zero cost:
 free API tier for the script, local CPU models for voice and caption timing, ffmpeg for rendering.
 
-**Status: early.** The whole path from topic to MP4 works, but scene visuals are still
-placeholder gradients. The free AI video backends described in [docs/DESIGN.md](docs/DESIGN.md)
-are the next step.
+**Status: early.** The whole path from topic to MP4 works, but no AI video clip has been
+generated yet: scene visuals are placeholder gradients until a free GPU backend has run
+successfully. See [docs/DESIGN.md](docs/DESIGN.md).
 
 | Part | Works today | Notes |
 |---|---|---|
 | Story writer | Gemini free tier, any OpenAI-compatible endpoint, or a built-in sample | The Gemini and OpenAI-compatible adapters have not been run against a live key yet |
 | Voice | Kokoro-82M on CPU; ffmpeg's flite as an offline fallback | |
 | Caption timing | Whisper on CPU, matched to the script text; proportional fallback | |
-| Scene video | Placeholder gradients only | Kaggle and Hugging Face backends not built yet |
+| Scene video | Placeholder gradients; Hugging Face Space adapter (`VIDEO_PROVIDER=hf-space`) | The adapter's request and its out-of-allowance handling were run live; a successful clip has not been, because the guest allowance was already used up. That Space reserves 120 s of free GPU per clip, so a free account gets about 2 clips a day. The Kaggle backend is not built yet |
 | Music | Ducked under the voice when a track is in `assets/music` | No tracks bundled |
 | Render and checks | ffmpeg; automatic checks of size, length, codecs, loudness | |
 
@@ -99,7 +99,9 @@ validation, storyboard checks, and one real ffmpeg render of a tiny two-scene vi
 6. **Checks** — the finished file is measured against the output spec.
 
 Every stage saves its result in the job folder and is skipped when that file exists, so `resume`
-never repeats finished work. Delete a file to redo that stage.
+never repeats finished work. Delete a file to redo that stage. The exception is video clips:
+`resume` asks again for every scene that got a placeholder, so a job can be completed over
+several days when the free allowance only covers a few clips a day.
 
 Background, research and licences: [docs/DESIGN.md](docs/DESIGN.md), [RESEARCH_LOG.md](RESEARCH_LOG.md),
 [THIRD_PARTY.md](THIRD_PARTY.md).

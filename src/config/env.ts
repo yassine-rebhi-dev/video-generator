@@ -24,6 +24,10 @@ const envSchema = z
 
     VIDEO_PROVIDER: z.enum(["placeholder", "hf-space", "kaggle"]).default("placeholder"),
     HF_TOKEN: z.string().optional(),
+    HF_SPACE: z.string().min(3).default("Lightricks/ltx-video-distilled"),
+    /** Size requested from the video model; clips are upscaled to the output size. */
+    CLIP_WIDTH: z.coerce.number().int().min(256).default(480),
+    CLIP_HEIGHT: z.coerce.number().int().min(256).default(832),
 
     MUSIC_DIR: z.string().min(1).default("assets/music"),
     CAPTION_FONT: z.string().min(1).default("Inter ExtraBold"),
@@ -40,8 +44,8 @@ const envSchema = z
         if (!env[key]) ctx.addIssue({ code: "custom", path: [key], message: "required when LLM_PROVIDER=openai" });
       }
     }
-    if (env.VIDEO_PROVIDER === "hf-space" && !env.HF_TOKEN) {
-      ctx.addIssue({ code: "custom", path: ["HF_TOKEN"], message: "required when VIDEO_PROVIDER=hf-space" });
+    if (env.CLIP_WIDTH % 32 !== 0 || env.CLIP_HEIGHT % 32 !== 0) {
+      ctx.addIssue({ code: "custom", path: ["CLIP_WIDTH"], message: "CLIP_WIDTH and CLIP_HEIGHT must be multiples of 32" });
     }
   });
 

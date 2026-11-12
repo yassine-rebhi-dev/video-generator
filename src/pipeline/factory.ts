@@ -2,6 +2,7 @@ import { WhisperRecognizer } from "../align/recognizer.js";
 import type { AppConfig } from "../config/env.js";
 import { FakeLlmProvider } from "../llm/fake.js";
 import { GeminiProvider, OpenAiCompatibleProvider, type LlmProvider } from "../llm/llm.js";
+import { HfSpaceVideoProvider } from "../visuals/hf-space.js";
 import { PlaceholderVideoProvider, type VideoProvider } from "../visuals/video.js";
 import { FliteProvider, KokoroProvider, type TtsProvider } from "../voice/voice.js";
 import { Pipeline, type Providers } from "./pipeline.js";
@@ -25,6 +26,15 @@ function tts(config: AppConfig): TtsProvider {
 
 function video(config: AppConfig): VideoProvider {
   if (config.VIDEO_PROVIDER === "placeholder") return new PlaceholderVideoProvider(config.FFMPEG_PATH);
+  if (config.VIDEO_PROVIDER === "hf-space") {
+    return new HfSpaceVideoProvider({
+      space: config.HF_SPACE,
+      token: config.HF_TOKEN,
+      width: config.CLIP_WIDTH,
+      height: config.CLIP_HEIGHT,
+      negativePrompt: "worst quality, inconsistent motion, blurry, jittery, distorted, text, letters, watermark, logo",
+    });
+  }
   throw new Error(`VIDEO_PROVIDER=${config.VIDEO_PROVIDER} is not implemented yet; use "placeholder"`);
 }
 

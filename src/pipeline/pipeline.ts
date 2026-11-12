@@ -102,21 +102,30 @@ export class Pipeline {
           );
           return spoken.map((s: SceneAudio) => ({ file: path.relative(dir, s.path), duration: s.duration }));
         }),
-        artifact<ClipRecord[]>("clips.json", async () => {
-          const requests = scenes.map((scene, index) => ({
-            index,
-            prompt: clipPrompt(storyboard, scene),
-            seconds: wordCount(scene.narration) / WORDS_PER_SECOND + 0.6,
-            outPath: path.join(dir, "clips", `scene-${pad(index)}.mp4`),
-          }));
+        (async (): Promise<ClipRecord[]> => {
+          // Clips that were real stay; missing ones and earlier placeholders are requested again,
+          // so a job can be resumed on later days until a small free allowance has covered every scene.
+          const file = path.join(dir, "clips.json");
+          const previous: ClipRecord[] = (await exists(file)) ? (JSON.parse(await readFile(file, "utf8")) as ClipRecord[]) : [];
+          const kept = previous.filter((c) => !c.fallback);
+          const requests = scenes
+            .map((scene, index) => ({
+              index,
+              prompt: clipPrompt(storyboard, scene),
+              seconds: wordCount(scene.narration) / WORDS_PER_SECOND + 0.6,
+              outPath: path.join(dir, "clips", `scene-${pad(index)}.mp4`),
+            }))
+            .filter((r) => !kept.some((c) => c.index === r.index));
+          if (requests.length === 0) return kept;
           await mkdir(path.join(dir, "clips"), { recursive: true });
-          const made = await generateClips(
-            this.providers.video,
-            new PlaceholderVideoProvider(tools.ffmpeg, false),
-            requests,
-          );
-          return made.map((c) => ({ index: c.index, file: path.relative(dir, c.path), fallback: c.fallback, error: c.error }));
-        }),
+          const made = await generateClips(this.providers.video, new PlaceholderVideoProvider(tools.ffmpeg, false), requests);
+          const records = [
+            ...kept,
+            ...made.map((c) => ({ index: c.index, file: path.relative(dir, c.path), fallback: c.fallback, error: c.error })),
+          ].sort((x, y) => x.index - y.index);
+          await writeFile(file, JSON.stringify(records, null, 2));
+          return records;
+        })(),
       ]),
     );
 

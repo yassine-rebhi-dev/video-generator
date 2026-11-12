@@ -165,3 +165,10 @@ Decision: video backends `kaggle` (default, Python worker) and `hf-zerogpu`, beh
   - Speech onsets measured in the final file by silence detection fall within 0.03 s of the planned scene starts.
   - Loudness measured -15.8 LUFS against a -14 target: single-pass normalisation undershoots; a two-pass measure-then-apply step would fix it.
 - Not done yet: real video backends (Kaggle, Hugging Face), a live run of the Gemini adapter, music tracks, Docker build.
+
+### 2026-11-12: Hugging Face Space backend
+
+- Public Spaces on free GPU found through the Hugging Face API: `Lightricks/ltx-video-distilled` (text-to-video, image-to-video; endpoint `/text_to_video`, up to 8.5 s, 30 fps) and several Wan 2.2 Spaces that are image-to-video only (for example `prithivMLmods/Wan2.2-Fast`, Wan 2.2 I2V 14B). Chose the LTX Space because it needs no input image. Its Space page states no licence; LTX-Video's own licence terms still need checking before monetised use.
+- One guest call was refused with "ZeroGPU quota exceeded (120s requested vs. -60s left)". So a single 4 s clip reserves 120 s (the Space asks for 60 s on the double-rate "xlarge" GPU). A free account's 300 s/day is about 2 clips.
+- The adapter stops at the first allowance refusal, marks the remaining scenes failed, and the pipeline finishes the video with placeholders. `resume` requests placeholder scenes again.
+- Not verified: a successful clip download, since no allowance was available. The secure key form was not available in this session, so no Hugging Face token or Gemini key has been used.

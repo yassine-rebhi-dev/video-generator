@@ -20,7 +20,8 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ LLM_PROVIDER: "fake", PORT: "abc" })).toThrow(/PORT/);
     expect(() => loadConfig({ LLM_PROVIDER: "fake", TTS_PROVIDER: "siri" })).toThrow(/TTS_PROVIDER/);
   });
-  it("requires a token for the Hugging Face video provider", () => {
-    expect(() => loadConfig({ LLM_PROVIDER: "fake", VIDEO_PROVIDER: "hf-space" })).toThrow(/HF_TOKEN/);
+  it("requires clip sizes the video model accepts", () => {
+    expect(() => loadConfig({ LLM_PROVIDER: "fake", CLIP_WIDTH: "500" })).toThrow(/multiples of 32/);
+    expect(loadConfig({ LLM_PROVIDER: "fake", VIDEO_PROVIDER: "hf-space" }).HF_SPACE).toBe("Lightricks/ltx-video-distilled");
   });
 });

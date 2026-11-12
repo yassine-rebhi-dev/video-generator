@@ -21,6 +21,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@gradio/client": "^2.7.2",
     "@nestjs/common": "^12.5.0",
     "@nestjs/core": "^12.5.0",
     "@nestjs/platform-express": "^12.5.0",
