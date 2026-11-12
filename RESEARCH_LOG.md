@@ -135,3 +135,20 @@ Two concrete bugs found in short-video-maker (token merge uses the whole segment
 1. Confirm real prices on the vendor pages (image provider, ElevenLabs) — blocked from this session.
 2. Confirm Kokoro and Whisper ONNX models download and run on CPU here (both are far below the 10 GB ask-first threshold).
 3. Measure, don't assume: render time per video and caption timing error, in the benchmark script.
+
+## Revision 2026-11-12 — owner requires full AI video at zero cost
+
+The stills-with-motion proposal was rejected: every scene must be generated video and running cost must be $0.
+
+Searches run (extended): free video-generation APIs; Hugging Face ZeroGPU free quota; Wan 2.2 / LTX on free Kaggle or Colab GPUs; free LLM API tiers.
+
+Findings:
+
+- No free, unlimited, scriptable video API was found. Offers are one-time signup credits or web apps with daily credits ([genrelay](https://genrelay.ai/blog/free-ai-video-generation-api), [seedance.tv](https://www.seedance.tv/blog/ai-video-generator-free-no-limits)) — both vendor pages.
+- Hugging Face ZeroGPU: 5 GPU-minutes/day on a free account, 2 for guests, reset 24 h after first use ([forum](https://discuss.huggingface.co/t/what-is-the-free-zerogpu-quota-for-1-space/178610), [forum](https://discuss.huggingface.co/t/what-is-the-guest-daily-zerogpu-quota/179433)).
+- Free T4 GPUs run Wan 2.2 5B FastWan at 480p; larger checkpoints do not fit ([Wan2GP-on-Colab](https://github.com/Square-Zero-Labs/Wan2GP-on-Colab), [WanGP-Kaggle](https://github.com/kayas881/WanGP-Kaggle), [Wan2.2-Lightning](https://huggingface.co/lightx2v/Wan2.2-Lightning)). No reliable per-clip timing found.
+- Gemini API has a free tier with small, non-guaranteed limits ([official](https://ai.google.dev/gemini-api/docs/rate-limits), [memetik](https://www.memetik.ai/guides/gemini-api-free-tier-limits)). Nothing verified for Groq, OpenRouter or Pollinations.
+- Not verified: Kaggle's weekly GPU hours; which public Wan/LTX Spaces exist today; `@gradio/client` call shape.
+- From this session, `huggingface.co`, `www.kaggle.com`, `api.groq.com`, `openrouter.ai` and Pollinations are unreachable; `generativelanguage.googleapis.com` and npm are reachable.
+
+Decision: video backends `kaggle` (default, Python worker) and `hf-zerogpu`, behind one interface, with a still-image fallback per clip; Gemini free tier for the script; Kokoro and Whisper locally. See docs/DESIGN.md sections 2, 5, 6.

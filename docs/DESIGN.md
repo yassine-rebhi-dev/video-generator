@@ -1,6 +1,6 @@
 # Design: story-shorts pipeline
 
-Status: **proposal, awaiting approval.** No application code exists yet.
+Status: **proposal, revision 2 (full AI video, zero cost), awaiting approval.** No application code exists yet.
 
 Evidence for every decision is in [RESEARCH_LOG.md](../RESEARCH_LOG.md) and the notes under [research/](../research/). Prices marked *unverified* come from search summaries of secondary sources, because vendor pricing pages could not be opened from the research session.
 
@@ -12,18 +12,31 @@ One command turns a topic into a finished vertical video:
 generate --topic "the lighthouse keeper who vanished in 1900" --style "dark-mystery"
 ```
 
-Output: `1080×1920`, 30 fps, 20–60 s, H.264 + AAC MP4, with an AI narrator, AI-generated scene images with camera motion, word-highlighted burned-in captions, a ducked music bed, and a hook on screen and in the audio from the first frame. Alongside the MP4 it writes a title, description, hashtags and an "apply the AI label" reminder for manual upload.
+Output: `1080×1920`, 30 fps, 20–60 s, H.264 + AAC MP4, with an AI narrator, AI-generated video clips for every scene, word-highlighted burned-in captions, a ducked music bed, and a hook on screen and in the audio from the first frame. Alongside the MP4 it writes a title, description, hashtags and an "apply the AI label" reminder for manual upload.
 
-Constraints it is designed around: storytelling niche, English, **no GPU**, pay-per-use APIs on a small budget, TypeScript/NestJS, permissive licences only.
+Constraints it is designed around: storytelling niche, English, **no GPU**, **zero running cost** (free tiers and local CPU only), TypeScript/NestJS, permissive licences only.
 
-## 2. The central decision: stills with motion, not stock and not full AI video
+## 2. The central decision (revised 2026-11-12): full AI video, at zero cost
 
-| Option | Why not / why |
-|---|---|
-| Stock footage by keyword (MoneyPrinterTurbo, short-video-maker) | Cannot show *this* story's characters or events. Fine for facts, wrong for stories. |
-| AI video for every shot (ViMax: Veo 3.1, 8 s clips) | Best-looking, but six or more hosted video calls per short puts each video in dollars. Hosted video is quoted at roughly $0.05–$0.40 per second (*unverified*, [teamday.ai](https://www.teamday.ai/blog/fal-ai-pricing-2026)). |
-| **AI still image per scene + camera motion + crossfades** | Shows the actual story, costs cents, renders on CPU. Consistency is solved at the image stage. **Chosen.** |
-| Hybrid: image-to-video for the hook scene only | Optional upgrade behind a flag, after the MVP. Spends the money where retention is decided. |
+Owner's decision: every scene is a generated **video clip**, not a still, and the pipeline must cost **nothing** to run. Revision 1 of this document proposed stills with motion; that is now only the fallback when a clip fails.
+
+With no GPU, free full video means borrowing a free GPU. There are two real ways, and both cap volume:
+
+| Backend | What it is | Free allowance | Good for |
+|---|---|---|---|
+| **`kaggle`** (default) | A small Python worker notebook runs an open video model (Wan 2.2 5B "FastWan", 480p, 4-step distilled) on Kaggle's free GPU. The pipeline pushes a job with all scene prompts, polls, and downloads the clips. | Free weekly GPU quota; sessions up to 9 h ([WanGP-Kaggle](https://github.com/kayas881/WanGP-Kaggle)). Exact weekly hours to be confirmed on the account. | Whole videos, in batches |
+| **`hf-zerogpu`** | Calls a public Wan/LTX Space on Hugging Face through `@gradio/client` with a free account token. | 5 GPU-minutes per day on a free account, resetting 24 h after first use ([HF forum](https://discuss.huggingface.co/t/what-is-the-free-zerogpu-quota-for-1-space/178610), [metacto](https://www.metacto.com/blogs/the-true-cost-of-hugging-face-a-guide-to-pricing-and-integration)) | A few clips a day: tests, or the hook |
+| `comfy-local` | Same workflow against a local ComfyUI, if a GPU ever becomes available. | — | Later |
+
+What this choice costs, plainly:
+
+- **Volume is limited by quota, not money.** ZeroGPU alone is at best about one short a day and probably less. Kaggle should allow several a week. Neither figure is measured yet.
+- **Resolution.** Free GPUs (16 GB T4 class) run the 5B model at 480p; larger checkpoints do not fit ([Wan2GP-on-Colab](https://github.com/Square-Zero-Labs/Wan2GP-on-Colab)). Clips are generated at 480×832 and upscaled to 1080×1920, so the picture is softer than paid models. The 4-step distilled mode also trades some quality for speed ([Wan2.2-Lightning](https://huggingface.co/lightx2v/Wan2.2-Lightning)).
+- **Speed.** A video is no longer minutes. Expect a queued batch job that may take an hour or more; no reliable per-clip timing exists for a free T4, so the benchmark will measure it.
+- **Fragility.** Free tiers change without notice and public Spaces come and go. Every backend sits behind one interface, and a clip that fails falls back to a still with camera motion so the video still finishes.
+- **Python.** The Kaggle worker is Python, because the model requires it. Everything else stays TypeScript.
+
+Wan 2.2 weights are Apache-2.0 ([Wan-Video/Wan2.2](https://github.com/Wan-Video/Wan2.2)), so monetised output is permitted by the model licence.
 
 ## 3. Pipeline
 
@@ -65,7 +78,7 @@ Prompt rules, each traced to a source: total 60–130 words ([facelesslab](https
 
 **3. Voice.** One TTS call per scene, so every scene boundary is known exactly from audio duration and never depends on speech recognition (idea from short-video-maker). Leading and trailing silence is trimmed; a short fixed gap is inserted between scenes; the hook scene starts at t = 0 with no lead-in.
 
-**4. Visuals.** First generate one reference portrait per main character from the bible. Then generate each scene image with the scene prompt + the bible text for any character present + the style block, passing the reference portrait to an image-edit-capable model. Images are requested at 9:16 and at least 1080×1920. Requests run with bounded concurrency and per-provider rate limits.
+**4. Visuals (revised).** Each scene becomes one 3–5 s video clip from the selected free backend (section 2). The clip prompt is the scene's `imagePrompt` plus a `motionPrompt` (what moves, and the camera move), plus the full character description for anyone in shot, plus the style block. Character consistency therefore rests on repeating the same concrete description in every prompt; it will be weaker than reference-image conditioning, so presets favour one main character and distinctive, simple looks. All clips of a video go to the backend as one batch. Clips are trimmed or slowed slightly to match each scene's narration length, upscaled to 1080×1920, and a failed clip is replaced by a still with camera motion.
 
 **5. Align.** Captions always display the **script's** words. Timing comes from, in order of preference:
 
@@ -111,32 +124,33 @@ All of the above are ideas reimplemented in my own code; nothing is copied. See 
 
 Every provider sits behind a small interface and is selected by environment variable.
 
-| Role | Default | Alternative | Notes |
+Revised for zero cost. Paid providers remain possible later behind the same interfaces, but none is used.
+
+| Role | Free default | Free alternative | Notes |
 |---|---|---|---|
-| Story + review LLM | Claude Opus 5.5 (`claude-opus-5-5`), structured outputs | Sonnet 5.5 or Haiku 5.5 by config | Opus $4 / $20, Sonnet $2 / $10, Haiku $0.10 / $0.50 per million input / output tokens. The script is the cheapest part of a video and the one that decides whether it is watched, so the default is the strongest writer. |
-| TTS | Kokoro-82M, local on CPU via `kokoro-js` (Apache-2.0, [hexgrad/kokoro](https://github.com/hexgrad/kokoro)) | ElevenLabs (native timestamps) | Kokoro costs nothing and needs no Python. ElevenLabs is the quality upgrade; its price per character is quoted inconsistently ($40–$180 per million characters, *unverified*, [tokenmix](https://tokenmix.ai/blog/tts-api-comparison)). |
-| Word timing | Whisper base (English) ONNX, local on CPU via transformers.js | Provider timestamps when available | Small download, well under the 10 GB ask-first threshold. |
-| Scene images | A reference-capable image model through a hosted API (fal or Replicate), e.g. Seedream 5.0 Lite at ~$0.035/image | FLUX.1 schnell at ~$0.003 per megapixel for a budget tier without reference conditioning | Prices *unverified* ([teamday.ai, Nov 2026](https://www.teamday.ai/blog/fal-ai-pricing-2026)). The exact model is a Phase 4 bake-off on three sample stories. |
-| Hook video (optional, off by default) | Hosted image-to-video, 3–5 s | — | Wan 2.2 weights are Apache-2.0 ([Wan-Video/Wan2.2](https://github.com/Wan-Video/Wan2.2)); hosted per-second price not confirmed. |
+| Story + review LLM | Google Gemini API free tier (a Flash-class model), JSON-schema output | Groq or OpenRouter free models through one OpenAI-compatible adapter | Two calls per video, far inside any free limit. Reported free limits are small and not guaranteed (about 5 requests/min and 20/day on Flash, 500/day on Flash-Lite, per [third-party reports](https://www.memetik.ai/guides/gemini-api-free-tier-limits); official page: [Gemini rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)). |
+| TTS | Kokoro-82M, local on CPU via `kokoro-js` (Apache-2.0, [hexgrad/kokoro](https://github.com/hexgrad/kokoro)) | — | Free, no Python. |
+| Word timing | Whisper base (English) ONNX, local on CPU via transformers.js | Proportional timing | Small download, well under the 10 GB ask-first threshold. |
+| Scene video | `kaggle` backend: Wan 2.2 5B FastWan, 480p | `hf-zerogpu` backend | See section 2. The Kaggle worker downloads model weights onto Kaggle's disk, not this machine. |
+| Fallback still | Frame from a neighbouring clip, or a free image Space | — | Only used when a clip fails. |
+| Music | CC0 tracks in a local folder | — | Each track listed in THIRD_PARTY.md. |
 | Render | ffmpeg 6+ with libass | — | Verified locally: `ass`, `zoompan`, `xfade`, `sidechaincompress`, `loudnorm` present. |
 
-Python is not needed anywhere in the MVP.
+Python appears in exactly one place: the Kaggle worker notebook.
 
 ## 6. Cost and time per video
 
-For a 45 s video: about 110 words, 12 scenes, 1 character reference. All figures are estimates to be replaced by measurements from the benchmark script.
+For a 45 s video: about 110 words and 10–12 clips of 4–5 s.
 
-| Item | Budget tier | Default tier | Premium tier |
-|---|---|---|---|
-| LLM (write + review, ~4k tokens in, ~4k out) | Haiku 5.5: < $0.01 | Opus 5.5: ~$0.10 | Opus 5.5: ~$0.10 |
-| Images (13) | FLUX schnell: ~$0.08 | Seedream Lite: ~$0.46 | Seedream Lite: ~$0.46 |
-| Voice (~650 characters) | Kokoro: $0 | Kokoro: $0 | ElevenLabs: ~$0.03–0.12 |
-| Word timing | local: $0 | local: $0 | from provider: $0 |
-| Hook video (4 s) | — | — | ~$0.20–1.60 |
-| **Total per video** | **~$0.10** | **~$0.55** | **~$0.80–2.30** |
-| Videos per month at $25 | ~250 | ~45 | ~10–30 |
+**Money: $0 per video.** The budget is quota and time instead:
 
-Expected wall-clock time per video on 4 CPU cores, no GPU: 3–6 minutes (LLM under 1 min; images under 1 min in parallel; local voice and word timing about 1 min; ffmpeg render 1–3 min). This is a guess until measured.
+| Item | Consumes | Limit that matters |
+|---|---|---|
+| Script (2 LLM calls) | Free-tier requests | Tens of requests a day on the reported free tier |
+| Voice, word timing, render | Local CPU, a few minutes | None |
+| 10–12 video clips | Free GPU time | Kaggle weekly quota, or 5 GPU-min/day on ZeroGPU |
+
+Nothing about GPU time per clip on a free T4 is reliably documented, so throughput is unknown until the benchmark runs. Working assumption to be tested: a few finished videos per week on Kaggle, each taking an hour or more end to end as a queued job.
 
 ## 7. Modules
 
@@ -168,8 +182,8 @@ Pure, well-tested core (no network, no model): `align`, `captions`, `render` gra
 
 **In the MVP**
 
-1. Thinnest slice first: topic → storyboard → Kokoro voice → images → proportional captions → ffmpeg render → MP4.
-2. Then, in order: recogniser-based word alignment; active-word caption styling; character reference conditioning; music with ducking and loudness normalisation; reviewer pass; QA checks.
+1. Thinnest slice first: topic → storyboard → Kokoro voice → video clips from one free backend → proportional captions → ffmpeg render → MP4.
+2. Then, in order: recogniser-based word alignment; active-word caption styling; the second video backend and the still fallback; music with ducking and loudness normalisation; reviewer pass; QA checks.
 3. CLI `generate --topic --style [--duration] [--voice] [--tier]`, `resume <jobId>`, and REST `POST /videos`.
 4. Env validation, Dockerfile (Node + ffmpeg, no browser, no Python), 3 style presets.
 5. Tests for alignment, caption paging and ASS output, filter-graph construction, config; benchmark script rendering 3 sample videos.
@@ -196,10 +210,9 @@ Pure, well-tested core (no network, no model): `align`, `captions`, `render` gra
 
 ## 10. Decisions I need from you
 
-1. **Approve the central choice**: still images with motion (cents per video) rather than full AI video (dollars per video)?
-2. **Image provider**: fal or Replicate — which account do you have or prefer?
-3. **LLM**: do you have an Anthropic API key, and is the Opus 5.5 default (~$0.10 per video) acceptable, or should the default be Sonnet or Haiku?
-4. **Voice**: start with free local Kokoro and compare with ElevenLabs later, or go straight to ElevenLabs?
-5. **Monthly budget**: I assumed about $25. What is the real ceiling?
-6. **Story sub-genre and look** for the first presets (for example dark mystery / historical / uplifting; painterly / cinematic photo / graphic novel).
-7. **Rendering from this cloud session**: to verify with real renders here I need the chosen providers' API hosts allowed in this environment's network settings and the keys added as environment secrets. Otherwise I build and test with fake providers and you run the first real render locally.
+Decided: full AI video; zero cost; free local voice.
+
+1. **Approve the free-video trade-offs** in section 2: 480p upscaled, a few videos a week, each a slow queued job.
+2. **Accounts** (all free): a Kaggle account with phone verification (needed for GPU), a Hugging Face token, and a Gemini API key. Which do you have or can create?
+3. **Where real renders run**: this cloud session cannot reach `huggingface.co`, `www.kaggle.com` or most other hosts (checked 2026-11-12). Either those hosts are allowed in the environment's network settings and the keys added as secrets, or I build and test against fake providers and you run the first real render on your machine.
+4. **Story sub-genre and look** for the first presets (for example dark mystery / historical / uplifting; painterly / cinematic / graphic novel).
